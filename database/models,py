@@ -1,0 +1,87 @@
+from datetime import datetime
+from typing import Optional
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+Base = declarative_base()
+
+class User(Base):
+    """Modelo de usuário do bot."""
+    
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    telegram_id = Column(Integer, unique=True, index=True, nullable=False)
+    username = Column(String(255), nullable=True)
+    first_name = Column(String(255), nullable=True)
+    last_name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    timezone = Column(String(50), default="America/Sao_Paulo")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relacionamentos
+    reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
+    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    
+    def __repr__(self) -> str:
+        return f"<User(telegram_id={self.telegram_id}, username={self.username})>"
+
+class Reminder(Base):
+    """Modelo de lembrete."""
+    
+    __tablename__ = "reminders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    description = Column(Text, nullable=False)
+    reminder_date = Column(DateTime(timezone=True), nullable=False)
+    urgency = Column(String(20), default="média")  # baixa, média, alta
+    is_completed = Column(Boolean, default=False)
+    is_sent = Column(Boolean, default=False)
+    job_id = Column(String(255), nullable=True)  # ID do job no scheduler
+    shortcut_url = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relacionamentos
+    user = relationship("User", back_populates="reminders")
+    
+    def __repr__(self) -> str:
+        return f"<Reminder(id={self.id}, description={self.description[:50]})>"
+
+class Conversation(Base):
+    """Modelo para armazenar histórico de conversas."""
+    
+    __tablename__ = "conversations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    message_type = Column(String(20), nullable=False)  # 'user', 'assistant'
+    content = Column(Text, nullable=False)
+    is_voice = Column(Boolean, default=False)
+    transcription = Column(Text, nullable=True)  # Para mensagens de voz
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relacionamentos
+    user = relationship("User", back_populates="conversations")
+    
+    def __repr__(self) -> str:
+        return f"<Conversation(id={self.id}, type={self.message_type}, content={self.content[:50]})>"
+
+class BotSession(Base):
+    """Modelo para sessões do bot (controle de estado)."""
+    
+    __tablename__ = "bot_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    telegram_id = Column(Integer, unique=True, index=True, nullable=False)
+    current_state = Column(String(50), default="idle")  # idle, waiting_reminder_details, etc.
+    session_data = Column(Text, nullable=True)  # JSON com dados da sessão
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self) -> str:
+        return f"<BotSession(telegram_id={self.telegram_id}, state={self.current_state})>"

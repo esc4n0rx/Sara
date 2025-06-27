@@ -1,0 +1,7 @@
+python-telegram-bot[job-queue]
+python-dotenv
+groq
+sqlalchemy
+alembic
+python-dateutil
+pytz
